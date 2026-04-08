@@ -7,6 +7,14 @@ let currentUser = null;
 let profileViewUser = null;
 let currentTheme = 'light';
 
+// Carousel variables
+let carouselIndex = 0;
+let carouselIntervalId = null;
+const carouselImages = [
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=720&fit=crop',
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=720&fit=crop'
+];
+
 window.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
@@ -40,6 +48,30 @@ function initApp() {
 
 function getAuthToken() {
     return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function encodeSvgData(svg) {
+    return window.btoa(unescape(encodeURIComponent(svg)));
+}
+
+function getAvatarFallbackSvg(name, size = 128) {
+    const initials = (name || 'U')
+        .split(' ')
+        .filter(Boolean)
+        .map(part => part.charAt(0))
+        .slice(0, 2)
+        .join('')
+        .toUpperCase() || 'U';
+    const fontSize = Math.floor(size * 0.45);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="100%" height="100%" rx="${Math.floor(size * 0.25)}" fill="#8b5cf6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, sans-serif" font-size="${fontSize}" font-weight="700" fill="#ffffff">${initials}</text></svg>`;
+    return `data:image/svg+xml;base64,${encodeSvgData(svg)}`;
+}
+
+function getProfileAvatarUrl(profilePicture, name) {
+    if (profilePicture && typeof profilePicture === 'string' && profilePicture.trim() !== '') {
+        return profilePicture;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=8b5cf6&color=fff&size=128`;
 }
 
 function saveAuthToken(token) {
@@ -138,6 +170,56 @@ function initializeTheme() {
     setTheme(savedTheme === 'dark' ? 'dark' : 'light');
 }
 
+function startCarousel() {
+    const carouselImage = document.getElementById('carouselImage');
+    if (!carouselImage) return;
+
+    if (carouselIntervalId) {
+        clearInterval(carouselIntervalId);
+    }
+
+    carouselIntervalId = setInterval(() => {
+        carouselIndex = (carouselIndex + 1) % carouselImages.length;
+        updateCarousel();
+    }, 5000);
+
+    updateCarousel();
+}
+
+function stopCarousel() {
+    if (carouselIntervalId) {
+        clearInterval(carouselIntervalId);
+        carouselIntervalId = null;
+    }
+}
+
+function updateCarousel() {
+    const carouselImage = document.getElementById('carouselImage');
+    const indicators = document.querySelectorAll('.indicator');
+
+    if (carouselImage) {
+        carouselImage.src = carouselImages[carouselIndex];
+    }
+
+    indicators.forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === carouselIndex);
+    });
+}
+
+function jumpToCarouselSlide(index) {
+    carouselIndex = index;
+    updateCarousel();
+
+    if (carouselIntervalId) {
+        clearInterval(carouselIntervalId);
+    }
+
+    carouselIntervalId = setInterval(() => {
+        carouselIndex = (carouselIndex + 1) % carouselImages.length;
+        updateCarousel();
+    }, 5000);
+}
+
 function showPage(pageId) {
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => {
@@ -156,17 +238,20 @@ function showHome(event) {
     if (event) event.preventDefault();
     showPage('homePage');
     setActiveNav('navHomeLink');
+    startCarousel();
 }
 
 function showFeed(event) {
     if (event) event.preventDefault();
     showPage('feedPage');
     setActiveNav('navFeedLink');
+    stopCarousel();
     loadPosts();
 }
 
 function showCreatePost(event) {
     if (event) event.preventDefault();
+    stopCarousel();
     if (!getAuthToken()) {
         showToast('Please log in first to create a post.', 'warning');
         showLogin();
@@ -186,6 +271,7 @@ function showConnections(event) {
 
 function showProfile(event, userId = null) {
     if (event) event.preventDefault();
+    stopCarousel();
     if (userId) {
         showUserProfile(userId);
         return;
@@ -226,12 +312,14 @@ async function showUserProfile(userId) {
 
 function showLogin(event) {
     if (event) event.preventDefault();
+    stopCarousel();
     showPage('loginPage');
     setActiveNav('');
 }
 
 function showRegister(event) {
     if (event) event.preventDefault();
+    stopCarousel();
     showPage('registerPage');
     setActiveNav('');
 }
@@ -552,12 +640,14 @@ function renderSearchResults(posts, users, query) {
                 <h3>Users</h3>
                 ${users.map(user => `
                     <div class="search-user-card card">
+                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=8b5cf6&color=fff&size=128" alt="${user.full_name || user.username}" class="search-user-avatar" onerror="this.onerror=null;this.src='${getAvatarFallbackSvg(user.full_name || user.username)}';" />
                         <div>
-                            <strong>${user.full_name || user.username}</strong>
+                            <strong onclick="showUserProfile('${user.id}')" style="cursor: pointer; color: var(--primary-color);">${user.full_name || user.username}</strong>
                             <span class="user-handle">@${user.username}</span>
                             <p>${user.reliability_score?.toFixed(1) ?? 0}% reliable</p>
                         </div>
                         <button class="btn btn-outline btn-small" onclick="showUserProfile('${user.id}')">View</button>
+                        ${currentUser && user.id !== currentUser.id && getAuthToken() ? `<button class="btn btn-connect btn-small" onclick="sendConnectionRequest('${user.id}')"><i class="fas fa-link"></i> Connect</button>` : ''}
                     </div>
                 `).join('')}
             </div>`
@@ -567,6 +657,11 @@ function renderSearchResults(posts, users, query) {
         ? posts.map(post => {
             const date = post.created_at ? new Date(post.created_at).toLocaleString() : '';
             const tags = Array.isArray(post.tags) ? post.tags.map(tag => `<span class="post-tag">#${tag}</span>`).join(' ') : '';
+            const isOwner = currentUser && post.author_id === currentUser.id;
+            const isNotCurrentUser = post.author_id !== (currentUser?.id);
+            
+            const profilePicUrl = getProfileAvatarUrl(post.profile_picture, post.author_name);
+            
             const mediaElement = Array.isArray(post.attachments) && post.attachments.length > 0
                 ? post.attachments.map(attachment => {
                     if (attachment.mime_type?.startsWith('video/')) {
@@ -581,12 +676,18 @@ function renderSearchResults(posts, users, query) {
 
             return `
                 <div class="post-card card">
-                    <div class="post-header">
-                        <div>
-                            <strong>${post.author_name || 'User'}</strong>
-                            <span class="post-meta">${post.post_type || 'Text'} - ${date}</span>
+                    <div class="post-header-with-avatar">
+                        <img src="${profilePicUrl}" alt="${post.author_name || 'User'}" class="post-avatar-pic" onerror="this.onerror=null;this.src='${getAvatarFallbackSvg(post.author_name)}';" />
+                        <div class="post-header-info">
+                            <div class="post-author-section">
+                                <strong class="post-author-name" onclick="showUserProfile('${post.author_id}')" style="cursor: pointer; color: var(--primary-color);">${post.author_name || 'User'}</strong>
+                                <span class="post-meta">${post.post_type || 'Text'} • ${date}</span>
+                            </div>
+                            <div class="post-header-right">
+                                <div class="rating">Reliability <span class="reliability-score">${post.reliability_score?.toFixed(1) ?? 'N/A'}%</span></div>
+                                ${isNotCurrentUser && getAuthToken() ? `<button class="btn btn-connect btn-small" onclick="sendConnectionRequest('${post.author_id}')"><i class="fas fa-link"></i> Connect</button>` : ''}
+                            </div>
                         </div>
-                        <div class="rating">Reliability ${post.reliability_score?.toFixed(1) ?? 'N/A'}%</div>
                     </div>
                     <div class="post-body">
                         <h3 class="post-title">${post.title || 'Knowledge share'}</h3>
@@ -597,7 +698,7 @@ function renderSearchResults(posts, users, query) {
                     <div class="post-actions">
                         <button class="post-action-btn" onclick="handleLikePost('${post.id}')">👍 Like (${post.likes_count || 0})</button>
                         <button class="post-action-btn" onclick="toggleComments('${post.id}')">💬 Comments (${post.comments_count || 0})</button>
-                        ${currentUser && post.author_id === currentUser.id ? `<button class="post-action-btn delete" onclick="handleDeletePost('${post.id}')">🗑️ Delete</button>` : ''}
+                        ${isOwner ? `<button class="post-action-btn delete" onclick="handleDeletePost('${post.id}')">🗑️ Delete</button>` : ''}
                     </div>
                     <div class="post-comments" id="commentsSection-${post.id}" style="display: none;">
                         <div class="comment-list" id="commentList-${post.id}"></div>
@@ -639,6 +740,11 @@ function renderPosts(posts) {
             const date = post.created_at ? new Date(post.created_at).toLocaleString() : '';
             const tags = Array.isArray(post.tags) ? post.tags.map(tag => `<span class="post-tag">#${tag}</span>`).join(' ') : '';
             const isOwner = currentUser && post.author_id === currentUser.id;
+            const isNotCurrentUser = post.author_id !== (currentUser?.id);
+            
+            // Generate profile picture using author_name
+            const authorInitials = (post.author_name || 'U').charAt(0).toUpperCase();
+            const profilePicUrl = getProfileAvatarUrl(post.profile_picture, post.author_name);
 
             let mediaElement = '';
             if (Array.isArray(post.attachments) && post.attachments.length > 0) {
@@ -655,12 +761,19 @@ function renderPosts(posts) {
 
             return `
                 <div class="post-card card">
-                    <div class="post-header">
-                        <div>
-                            <strong>${post.author_name || 'User'}</strong>
-                            <span class="post-meta">${post.post_type || 'Text'} - ${date}</span>
+                    <div class="post-header-with-avatar">
+                        <img src="${profilePicUrl}" alt="${post.author_name || 'User'}" class="post-avatar-pic" onerror="this.onerror=null;this.src='${getAvatarFallbackSvg(post.author_name)}';" />
+                        <div class="post-header-info">
+                            <div class="post-author-section">
+                                <strong class="post-author-name" onclick="showUserProfile('${post.author_id}')" style="cursor: pointer; color: var(--primary-color);">${post.author_name || 'User'}</strong>
+                                <span class="post-meta">${post.post_type || 'Text'} • ${date}</span>
+                            </div>
+                            <div class="post-header-right">
+                                <div class="rating">Reliability <span class="reliability-score">${post.reliability_score?.toFixed(1) ?? 'N/A'}%</span></div>
+                                <button class="btn btn-outline btn-small" onclick="showUserProfile('${post.author_id}')">View posts</button>
+                                ${isNotCurrentUser && getAuthToken() ? `<button class="btn btn-connect btn-small" onclick="sendConnectionRequest('${post.author_id}')"><i class="fas fa-link"></i> Connect</button>` : ''}
+                            </div>
                         </div>
-                        <div class="rating">Reliability ${post.reliability_score?.toFixed(1) ?? 'N/A'}%</div>
                     </div>
                     <div class="post-body">
                         <h3 class="post-title">${post.title || 'Knowledge share'}</h3>
@@ -852,6 +965,7 @@ function renderProfile() {
     const connectionCount = ((userToShow.followers_count || 0) + (userToShow.following_count || 0));
 
     const profileImage = userToShow.profile_picture || 'https://picsum.photos/seed/user/120/120.jpg';
+    const postsTitle = isOwnProfile ? 'My Posts' : `${userToShow.full_name || userToShow.username}'s Posts`;
 
     profilePage.innerHTML = `
         <div class="container">
@@ -888,8 +1002,110 @@ function renderProfile() {
                     ` : ''}
                 </div>
             </div>
+            <div class="card profile-card">
+                <div class="profile-posts-header">
+                    <h3>${postsTitle}</h3>
+                </div>
+                <div id="profilePostsSection" class="profile-posts-list">
+                    <p class="empty-state">Loading posts...</p>
+                </div>
+            </div>
         </div>
     `;
+
+    if (userToShow.id) {
+        loadUserPosts(userToShow.id);
+    }
+}
+
+async function loadUserPosts(userId) {
+    const section = document.getElementById('profilePostsSection');
+    if (!section) return;
+    section.innerHTML = '<p class="empty-state">Loading posts...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/user/${userId}`);
+        if (!response.ok) {
+            section.innerHTML = '<p class="empty-state">Unable to load posts.</p>';
+            return;
+        }
+
+        const posts = await response.json();
+        renderProfilePosts(posts);
+    } catch (error) {
+        console.error('Failed to load user posts', error);
+        section.innerHTML = '<p class="empty-state">Unable to load posts. Check your connection.</p>';
+    }
+}
+
+function renderProfilePosts(posts) {
+    const section = document.getElementById('profilePostsSection');
+    if (!section) return;
+
+    if (!Array.isArray(posts) || posts.length === 0) {
+        section.innerHTML = '<p class="empty-state">This user has not shared any posts yet.</p>';
+        return;
+    }
+
+    section.innerHTML = posts.map(post => {
+        const date = post.created_at ? new Date(post.created_at).toLocaleString() : '';
+        const tags = Array.isArray(post.tags) ? post.tags.map(tag => `<span class="post-tag">#${tag}</span>`).join(' ') : '';
+        const isOwner = currentUser && post.author_id === currentUser.id;
+        const isNotCurrentUser = post.author_id !== (currentUser?.id);
+        const profilePicUrl = getProfileAvatarUrl(post.profile_picture, post.author_name);
+
+        const mediaElement = Array.isArray(post.attachments) && post.attachments.length > 0
+            ? post.attachments.map(attachment => {
+                if (attachment.mime_type?.startsWith('video/')) {
+                    return `<video controls class="post-media" style="max-width: 100%; margin: 10px 0;"><source src="${attachment.url}" type="${attachment.mime_type}"></video>`;
+                }
+                if (attachment.mime_type?.startsWith('image/')) {
+                    return `<img src="${attachment.url}" class="post-media" alt="Post media" style="max-width: 100%; margin: 10px 0; border-radius: 8px;">`;
+                }
+                return `<a href="${attachment.url}" target="_blank" class="file-link" style="display: inline-block; padding: 8px 12px; background: #f0f0f0; border-radius: 4px; text-decoration: none; margin: 10px 0;">📎 View Attachment</a>`;
+            }).join('')
+            : '';
+
+        return `
+            <div class="post-card card">
+                <div class="post-header-with-avatar">
+                    <img src="${profilePicUrl}" alt="${post.author_name || 'User'}" class="post-avatar-pic" onerror="this.onerror=null;this.src='${getAvatarFallbackSvg(post.author_name)}';" />
+                    <div class="post-header-info">
+                        <div class="post-author-section">
+                            <strong class="post-author-name" onclick="showUserProfile('${post.author_id}')" style="cursor: pointer; color: var(--primary-color);">${post.author_name || 'User'}</strong>
+                            <span class="post-meta">${post.post_type || 'Text'} • ${date}</span>
+                        </div>
+                        <div class="post-header-right">
+                            <div class="rating">Reliability <span class="reliability-score">${post.reliability_score?.toFixed(1) ?? 'N/A'}%</span></div>
+                            ${isNotCurrentUser && getAuthToken() ? `<button class="btn btn-connect btn-small" onclick="sendConnectionRequest('${post.author_id}')"><i class="fas fa-link"></i> Connect</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="post-body">
+                    <h3 class="post-title">${post.title || 'Knowledge share'}</h3>
+                    <p>${post.content || ''}</p>
+                    ${mediaElement}
+                    ${tags ? `<div class="post-tags">${tags}</div>` : ''}
+                </div>
+                <div class="post-actions">
+                    <button class="post-action-btn" onclick="handleLikePost('${post.id}')">👍 Like (${post.likes_count || 0})</button>
+                    <button class="post-action-btn" onclick="toggleComments('${post.id}')">💬 Comments (${post.comments_count || 0})</button>
+                    ${isOwner ? `<button class="post-action-btn delete" onclick="handleDeletePost('${post.id}')">🗑️ Delete</button>` : ''}
+                </div>
+                <div class="post-comments" id="commentsSection-${post.id}" style="display: none;">
+                    <div class="comment-list" id="commentList-${post.id}"></div>
+                    ${getAuthToken() ? `
+                        <div class="comment-form">
+                            <textarea id="commentInput-${post.id}" class="comment-input" rows="3" placeholder="Write a comment..."></textarea>
+                            <button class="btn btn-primary btn-small" onclick="submitComment('${post.id}')">Post Comment</button>
+                        </div>
+                    ` : `
+                        <p class="comment-login-note">Please log in to leave a comment.</p>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function fetchUserProfileById(userId) {

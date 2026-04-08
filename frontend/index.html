@@ -181,21 +181,72 @@
         </div>
       </div>
 
-      <div id="homePage" class="page">
-        <div class="container">
-          <div class="home-hero card">
-            <h1>Learn. Connect. Share.</h1>
-            <p class="home-quote">
-              "Knowledge is the only treasure that increases when shared." -
-              Anonymous
-            </p>
-            <div class="home-actions">
-              <button class="btn btn-primary" onclick="showFeed(event)">
-                View Feed
-              </button>
-              <button class="btn btn-outline" onclick="showLogin(event)">
-                Login
-              </button>
+      <div id="homePage" class="page home-page">
+        <div class="home-hero-container">
+          <div class="hero-left">
+            <div class="carousel-container">
+              <img
+                id="carouselImage"
+                src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=720&fit=crop"
+                alt="Knowledge Sharing"
+                class="hero-image carousel-image"
+              />
+              <div class="carousel-indicators">
+                <span
+                  class="indicator active"
+                  onclick="jumpToCarouselSlide(0)"
+                ></span>
+                <span
+                  class="indicator"
+                  onclick="jumpToCarouselSlide(1)"
+                ></span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-right">
+            <div class="hero-content">
+              <h1 class="hero-title">Learn. Connect. Share.</h1>
+              <p class="hero-subtitle">
+                A platform for sharing reliable knowledge with the world
+              </p>
+
+              <div class="quote-section">
+                <i class="fas fa-quote-left quote-icon"></i>
+                <p class="knowledge-quote">
+                  "Knowledge is the only treasure that increases when shared."
+                </p>
+                <p class="quote-author">— Anonymous</p>
+              </div>
+
+              <div class="hero-buttons">
+                <button
+                  class="btn btn-primary btn-lg"
+                  onclick="showFeed(event)"
+                >
+                  <i class="fas fa-newspaper"></i> Explore Feed
+                </button>
+                <button
+                  class="btn btn-secondary btn-lg"
+                  onclick="showLogin(event)"
+                >
+                  <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+              </div>
+
+              <div class="hero-features">
+                <div class="feature">
+                  <i class="fas fa-brain"></i>
+                  <span>AI-Powered Analysis</span>
+                </div>
+                <div class="feature">
+                  <i class="fas fa-shield-alt"></i>
+                  <span>Verified Content</span>
+                </div>
+                <div class="feature">
+                  <i class="fas fa-users"></i>
+                  <span>Connect & Grow</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -206,7 +257,15 @@
           <div class="content-grid">
             <div class="main-feed">
               <div class="feed-header">
-                <h2>Latest Knowledge Posts</h2>
+                <div class="feed-header-left">
+                  <h2>Latest Knowledge Posts</h2>
+                  <button
+                    class="btn btn-outline btn-small"
+                    onclick="showFeed(event)"
+                  >
+                    View all posts
+                  </button>
+                </div>
                 <div class="feed-filters">
                   <button class="filter-btn active">Latest</button>
                   <button class="filter-btn">Most Reliable</button>
