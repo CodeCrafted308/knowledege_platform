@@ -5,6 +5,7 @@ A modern knowledge sharing platform with content analysis and reliability scorin
 ## Features
 
 ### Core Features
+
 - **User Authentication**: Secure registration and login with JWT tokens
 - **Content Creation**: Create posts with different types (text, article, question, discussion)
 - **Content Analysis**: AI-powered reliability scoring for all shared content
@@ -13,6 +14,7 @@ A modern knowledge sharing platform with content analysis and reliability scorin
 - **Search**: Search posts and users with advanced filtering
 
 ### Unique Features
+
 - **Reliability Scoring**: Each post is analyzed and given a reliability score (0-100%)
 - **Content Verification**: Automatic verification for high-quality content
 - **Badge Progression**: 5-tier badge system (Newcomer → Knowledge Master)
@@ -21,6 +23,7 @@ A modern knowledge sharing platform with content analysis and reliability scorin
 ## Tech Stack
 
 ### Backend
+
 - **FastAPI**: Modern Python web framework
 - **MongoDB**: NoSQL database for flexible data storage
 - **Motor**: Async MongoDB driver
@@ -29,6 +32,7 @@ A modern knowledge sharing platform with content analysis and reliability scorin
 - **Scikit-learn**: Machine learning for content scoring
 
 ### Frontend
+
 - **HTML5, CSS3, JavaScript**: Modern web technologies
 - **Responsive Design**: Mobile-first approach
 - **Font Awesome**: Icon library
@@ -38,25 +42,54 @@ A modern knowledge sharing platform with content analysis and reliability scorin
 
 ```
 final/
+├── README.md                    # Project documentation
+├── setup.py                     # Python package setup
+├── test.txt                     # Test file
 ├── backend/
-│   ├── app/
-│   │   ├── models/          # Database models
-│   │   ├── routers/         # API endpoints
-│   │   ├── services/        # Business logic
-│   │   └── utils/           # Utility functions
-│   ├── main.py              # FastAPI application
-│   ├── requirements.txt     # Python dependencies
-│   └── .env                 # Environment variables
+│   ├── main.py                  # FastAPI application entry point
+│   ├── requirements.txt         # Python dependencies
+│   └── app/
+│       ├── __init__.py
+│       ├── database.py          # Database connection and configuration
+│       ├── models/              # Database models
+│       │   ├── __init__.py
+│       │   ├── connection.py    # User connection model
+│       │   ├── post.py          # Post model
+│       │   └── user.py          # User model
+│       ├── routers/             # API endpoints
+│       │   ├── __init__.py
+│       │   ├── admin.py         # Admin endpoints
+│       │   ├── auth.py          # Authentication endpoints
+│       │   ├── connections.py   # User connections endpoints
+│       │   ├── posts.py         # Post management endpoints
+│       │   └── users.py         # User management endpoints
+│       ├── services/            # Business logic services
+│       │   ├── __init__.py
+│       │   ├── badge_service.py     # Badge evaluation logic
+│       │   ├── connection_service.py # User connection management
+│       │   ├── content_analysis.py  # AI content analysis
+│       │   ├── post_service.py      # Post operations
+│       │   └── user_service.py      # User operations
+│       └── utils/               # Utility functions
+│           ├── __init__.py
+│           └── auth.py          # Authentication utilities
 ├── frontend/
-│   ├── index.html           # Main HTML file
-│   ├── styles.css           # CSS styling
-│   └── script.js            # JavaScript functionality
-└── README.md                # This file
+│   ├── index.html               # Main application page
+│   ├── admin.html               # Admin dashboard
+│   ├── styles.css               # Main application styles
+│   ├── admin-styles.css         # Admin dashboard styles
+│   ├── script.js                # Main application logic
+│   └── admin-script.js          # Admin dashboard logic
+└── uploads/                     # File upload directories
+    ├── 3c5433fa-6bc6-4bf1-9ec9-8345cdb5703b.txt
+    ├── c77fe193-8d73-4a1f-921b-9f00f82b5f2b.txt
+    └── 76b6e5c8-5eb0-448c-a435-43093a4a8196.txt
 ```
 
 ## Installation and Setup
 
 ### Prerequisites
+
 - Python 3.8+
 - MongoDB (local installation or MongoDB Atlas)
 - Node.js (optional, for development tools)
@@ -64,6 +97,7 @@ final/
 ### Backend Setup
 
 1. **Install Python Dependencies**
+
    ```bash
    cd backend
    pip install -r requirements.txt
@@ -96,11 +130,13 @@ final/
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get current user info
 
 ### Posts
+
 - `POST /api/posts/` - Create new post
 - `GET /api/posts/` - Get posts with pagination
 - `GET /api/posts/search` - Search posts
@@ -108,12 +144,14 @@ final/
 - `POST /api/posts/{id}/comments` - Add comment
 
 ### Users
+
 - `GET /api/users/me` - Get current user profile
 - `PUT /api/users/me` - Update profile
 - `GET /api/users/{id}` - Get user profile
 - `GET /api/users/{id}/badges` - Get user badges
 
 ### Connections
+
 - `POST /api/connections/request` - Send connection request
 - `POST /api/connections/{id}/accept` - Accept connection
 - `POST /api/connections/{id}/reject` - Reject connection
@@ -124,6 +162,7 @@ final/
 The platform uses advanced NLP techniques to analyze content:
 
 ### Scoring Factors
+
 - **Keyword Analysis**: Presence of research-oriented terms
 - **Pattern Detection**: Identifies unreliable content patterns
 - **Structure Analysis**: Evaluates content organization
@@ -132,6 +171,7 @@ The platform uses advanced NLP techniques to analyze content:
 - **Readability**: Content clarity assessment
 
 ### Badge System
+
 1. **Newcomer** (0+ score, 0+ posts)
 2. **Reliable Source** (60+ score, 5+ posts)
 3. **Expert Contributor** (75+ score, 15+ posts)
@@ -141,6 +181,7 @@ The platform uses advanced NLP techniques to analyze content:
 ## Usage Guide
 
 ### For Users
+
 1. **Register**: Create an account with email and password
 2. **Create Posts**: Share knowledge with proper sources and evidence
 3. **Build Reputation**: Consistently share high-quality content
@@ -148,6 +189,7 @@ The platform uses advanced NLP techniques to analyze content:
 5. **Earn Badges**: Progress through the badge system
 
 ### Content Tips for High Reliability Scores
+
 - Include research data and statistics
 - Cite sources and references
 - Use balanced, objective language
@@ -158,6 +200,7 @@ The platform uses advanced NLP techniques to analyze content:
 ## Development
 
 ### Running in Development Mode
+
 ```bash
 # Backend with auto-reload
 cd backend
@@ -169,6 +212,7 @@ python -m http.server 3000
 ```
 
 ### Environment Variables
+
 ```env
 MONGODB_URL=mongodb://localhost:27017
 DATABASE_NAME=knowledge_platform

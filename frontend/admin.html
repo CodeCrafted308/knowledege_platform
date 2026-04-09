@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel - Knowledge Share Platform</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="admin-styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="admin-wrapper">
+      <!-- Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+          <i class="fas fa-shield-alt"></i>
+          <span>Admin Panel</span>
+        </div>
+        <nav class="sidebar-nav">
+          <button
+            class="nav-item active"
+            data-tab="dashboard"
+            onclick="showTab('dashboard')"
+          >
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-item" data-tab="users" onclick="showTab('users')">
+            <i class="fas fa-users"></i>
+            <span>All Users</span>
+          </button>
+          <button
+            class="nav-item"
+            data-tab="suspended"
+            onclick="showTab('suspended')"
+          >
+            <i class="fas fa-ban"></i>
+            <span>Suspended Users</span>
+          </button>
+          <button
+            class="nav-item"
+            data-tab="moderation"
+            onclick="showTab('moderation')"
+          >
+            <i class="fas fa-gavel"></i>
+            <span>Moderation</span>
+          </button>
+          <hr class="sidebar-divider" />
+          <button class="nav-item" onclick="goHome()">
+            <i class="fas fa-arrow-left"></i>
+            <span>Back to Platform</span>
+          </button>
+          <button class="nav-item logout" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+        <header class="admin-header">
+          <h1 id="pageTitle">Admin Dashboard</h1>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshData()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <div class="user-menu">
+              <span id="adminName"></span>
+              <i class="fas fa-user-circle"></i>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+          <div class="dashboard-grid">
+            <div class="stat-card">
+              <div class="stat-icon total">
+                <i class="fas fa-users"></i>
+              </div>
+              <div class="stat-info">
+                <h3>Total Users</h3>
+                <p class="stat-number" id="totalUsers">-</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon active">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="stat-info">
+                <h3>Active Users</h3>
+                <p class="stat-number" id="activeUsers">-</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon suspended">
+                <i class="fas fa-exclamation-circle"></i>
+              </div>
+              <div class="stat-info">
+                <h3>Suspended Users</h3>
+                <p class="stat-number" id="suspendedUsers">-</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon admin">
+                <i class="fas fa-crown"></i>
+              </div>
+              <div class="stat-info">
+                <h3>Admin Users</h3>
+                <p class="stat-number" id="adminUsers">-</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-actions">
+            <h2>Quick Actions</h2>
+            <div class="action-buttons">
+              <button class="btn btn-primary" onclick="searchUserModal()">
+                <i class="fas fa-search"></i> Search User
+              </button>
+              <button class="btn btn-warning" onclick="showTab('suspended')">
+                <i class="fas fa-ban"></i> View Suspended
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="users" class="tab-content">
+          <div class="section-header">
+            <h2>Manage Users</h2>
+            <input
+              type="text"
+              id="userSearchInput"
+              placeholder="Search users..."
+              class="search-input"
+              onkeyup="debounceSearch()"
+            />
+          </div>
+
+          <div class="table-responsive">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Full Name</th>
+                  <th>Reliability Score</th>
+                  <th>Status</th>
+                  <th>Admin</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="7" class="no-data">
+                    <i class="fas fa-spin fa-spinner"></i> Loading users...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination" id="usersPagination"></div>
+        </div>
+
+        <!-- Suspended Users Tab -->
+        <div id="suspended" class="tab-content">
+          <div class="section-header">
+            <h2>Suspended Users</h2>
+          </div>
+
+          <div class="table-responsive">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Suspension Reason</th>
+                  <th>Suspended Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="suspendedTableBody">
+                <tr>
+                  <td colspan="5" class="no-data">
+                    <i class="fas fa-spin fa-spinner"></i> Loading suspended
+                    users...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Moderation Tab -->
+        <div id="moderation" class="tab-content">
+          <div class="section-header">
+            <h2>Moderation & Safety</h2>
+          </div>
+
+          <div class="moderation-grid">
+            <div class="moderation-card">
+              <h3><i class="fas fa-user-times"></i> Report Management</h3>
+              <p>
+                View and manage user reports for spam, illegal content, and
+                violations.
+              </p>
+              <p class="feature-status">Coming soon</p>
+            </div>
+
+            <div class="moderation-card">
+              <h3><i class="fas fa-file-times"></i> Content Review</h3>
+              <p>
+                Review flagged posts and content that violates community
+                guidelines.
+              </p>
+              <p class="feature-status">Coming soon</p>
+            </div>
+
+            <div class="moderation-card">
+              <h3><i class="fas fa-shield-alt"></i> Spam Prevention</h3>
+              <p>
+                Monitor and prevent spam, phishing, and malicious activities.
+              </p>
+              <p class="feature-status">Coming soon</p>
+            </div>
+
+            <div class="moderation-card">
+              <h3><i class="fas fa-log-in"></i> Access Logs</h3>
+              <p>View admin access logs and system security events.</p>
+              <p class="feature-status">Coming soon</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- User Action Modal -->
+    <div id="userActionModal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2>User Actions</h2>
+          <button class="modal-close" onclick="closeModal('userActionModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="userActionContent">
+          <!-- Will be populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Suspension Modal -->
+    <div id="suspensionModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Suspend User</h2>
+          <button class="modal-close" onclick="closeModal('suspensionModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <form onsubmit="confirmSuspension(event)">
+            <div class="form-group">
+              <label>Suspension Reason</label>
+              <textarea
+                id="suspensionReason"
+                placeholder="Explain why this user is being suspended..."
+                required
+                rows="4"
+              ></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-danger">Suspend User</button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="closeModal('suspensionModal')"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="confirmTitle">Confirm Action</h2>
+          <button class="modal-close" onclick="closeModal('confirmationModal')">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmMessage"></p>
+          <div class="form-actions">
+            <button class="btn btn-danger" onclick="executeConfirmedAction()">
+              <i class="fas fa-exclamation"></i> Confirm
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="closeModal('confirmationModal')"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Notification -->
+    <div id="notification" class="notification"></div>
+
+    <script src="admin-script.js"></script>
+  </body>
+</html>

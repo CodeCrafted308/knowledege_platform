@@ -124,6 +124,7 @@ function updateAuthUI(isLoggedIn) {
     const userPanel = document.getElementById('navUser');
     const navUsername = document.getElementById('navUsername');
     const navUserAvatar = document.getElementById('navUserAvatar');
+    const navAdminLink = document.getElementById('navAdminLink');
 
     if (isLoggedIn && currentUser) {
         authPanel.style.display = 'none';
@@ -132,11 +133,17 @@ function updateAuthUI(isLoggedIn) {
         if (navUserAvatar) {
             navUserAvatar.src = currentUser.profile_picture || 'https://picsum.photos/seed/user/40/40.jpg';
         }
+        if (navAdminLink) {
+            navAdminLink.style.display = currentUser.is_admin ? 'inline-flex' : 'none';
+        }
     } else {
         authPanel.style.display = 'flex';
         userPanel.style.display = 'none';
         if (navUserAvatar) {
             navUserAvatar.src = 'https://picsum.photos/seed/user/40/40.jpg';
+        }
+        if (navAdminLink) {
+            navAdminLink.style.display = 'none';
         }
     }
 }
@@ -267,6 +274,11 @@ function showConnections(event) {
     showPage('connectionsPage');
     setActiveNav('navConnectionsLink');
     renderConnections();
+}
+
+function openAdminPanel(event) {
+    if (event) event.preventDefault();
+    window.location.href = 'admin.html';
 }
 
 function showProfile(event, userId = null) {

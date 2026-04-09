@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles # Added for media serving
 from pydantic_settings import BaseSettings
 
 # Import your local modules
-from app.routers import auth, users, posts, connections
+from app.routers import auth, users, posts, connections, admin
 from app.database import connect_to_mongo, close_mongo_connection
 
 class Settings(BaseSettings):
@@ -60,6 +60,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(connections.router, prefix="/api/connections", tags=["connections"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 @app.get("/")
 async def root():

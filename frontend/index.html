@@ -71,6 +71,14 @@
               >
               <a
                 href="#"
+                id="navAdminLink"
+                onclick="openAdminPanel(event)"
+                class="nav-link"
+                style="display: none"
+                >Admin Panel</a
+              >
+              <a
+                href="#"
                 id="navProfileLink"
                 onclick="showProfile(event)"
                 class="nav-link"
@@ -196,10 +204,7 @@
                   class="indicator active"
                   onclick="jumpToCarouselSlide(0)"
                 ></span>
-                <span
-                  class="indicator"
-                  onclick="jumpToCarouselSlide(1)"
-                ></span>
+                <span class="indicator" onclick="jumpToCarouselSlide(1)"></span>
               </div>
             </div>
           </div>

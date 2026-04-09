@@ -45,16 +45,16 @@ class ContentAnalyzer:
         word_count = len(content.split())
         sentence_count = len(sent_tokenize(content))
         
-        # Sentiment analysis
+        # Sentiment analysis - DETERMINISTIC by rounding to 2 decimal places
         blob = TextBlob(content)
-        sentiment_polarity = blob.sentiment.polarity
-        sentiment_subjectivity = blob.sentiment.subjectivity
+        sentiment_polarity = round(blob.sentiment.polarity, 2)  # FIX: Reduce precision variance
+        sentiment_subjectivity = round(blob.sentiment.subjectivity, 2)  # FIX: Reduce precision variance
         
         # Readability score (simplified Flesch-Kincaid)
         avg_sentence_length = word_count / max(sentence_count, 1)
         syllable_count = sum(self._count_syllables(word) for word in content.split())
         avg_syllables_per_word = syllable_count / max(word_count, 1)
-        readability_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+        readability_score = round(206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word), 2)  # FIX: Round for determinism
         
         # Keyword analysis
         reliable_keyword_score = self._analyze_reliable_keywords(content)
@@ -81,14 +81,14 @@ class ContentAnalyzer:
         final_score = (content_score * 0.7) + (author_reliability * 0.3)
         
         return {
-            "reliability_score": max(0, min(100, final_score)),
+            "reliability_score": round(max(0, min(100, final_score)), 2),  # FIX: Round for determinism
             "content_score": content_score,
             "author_reliability": author_reliability,
             "breakdown": {
-                "reliable_keywords": reliable_keyword_score,
-                "unreliable_patterns": unreliable_pattern_score,
-                "structure": structure_score,
-                "fact_checking": fact_check_score,
+                "reliable_keywords": round(reliable_keyword_score, 2),  # FIX: Round for determinism
+                "unreliable_patterns": round(unreliable_pattern_score, 2),  # FIX: Round for determinism
+                "structure": round(structure_score, 2),  # FIX: Round for determinism
+                "fact_checking": round(fact_check_score, 2),  # FIX: Round for determinism
                 "sentiment_polarity": sentiment_polarity,
                 "sentiment_subjectivity": sentiment_subjectivity,
                 "readability": readability_score,
@@ -200,9 +200,9 @@ class ContentAnalyzer:
             'readability': 0.1
         }
         
-        # Sentiment score (moderate sentiment is better)
-        sentiment_score = 100 - (abs(sentiment_polarity) * 50) - (sentiment_subjectivity * 25)
-        sentiment_score = max(0, sentiment_score)
+        # Sentiment score (moderate sentiment is better) - DETERMINISTIC
+        sentiment_score = 100 - ((abs(sentiment_polarity) * 50) + (sentiment_subjectivity * 25))
+        sentiment_score = max(0, min(100, round(sentiment_score, 2)))  # FIX: Clamp and round
         
         # Readability score (normalize to 0-100)
         readability_score = max(0, min(100, readability))
@@ -217,7 +217,7 @@ class ContentAnalyzer:
             readability_score * weights['readability']
         )
         
-        return final_score
+        return round(final_score, 2)  # FIX: Round for determinism
     
     def _generate_recommendations(self, content_score: float, reliable_keywords: float, unreliable_patterns: float) -> List[str]:
         """Generate recommendations to improve content reliability"""

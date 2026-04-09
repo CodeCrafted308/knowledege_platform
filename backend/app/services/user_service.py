@@ -25,6 +25,9 @@ class UserService:
             "following_count": 0,
             "posts_count": 0,
             "is_active": True,
+            "is_admin": False,
+            "is_suspended": False,
+            "suspension_reason": None,
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
@@ -117,3 +120,120 @@ class UserService:
                 "$set": {"updated_at": datetime.utcnow()}
             }
         )
+    
+    # ====== ADMIN OPERATIONS ======
+    
+    async def get_all_users(self, skip: int = 0, limit: int = 50) -> tuple[list, int]:
+        """Get all users with pagination"""
+        users = []
+        cursor = self.users_collection.find().skip(skip).limit(limit)
+        async for user_doc in cursor:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            users.append(UserResponse(**user_doc))
+        
+        total_count = await self.users_collection.count_documents({})
+        return users, total_count
+    
+    async def search_users(self, query: str, skip: int = 0, limit: int = 50) -> tuple[list, int]:
+        """Search users by username, email, or full name"""
+        search_filter = {
+            "$or": [
+                {"username": {"$regex": query, "$options": "i"}},
+                {"email": {"$regex": query, "$options": "i"}},
+                {"full_name": {"$regex": query, "$options": "i"}}
+            ]
+        }
+        
+        users = []
+        cursor = self.users_collection.find(search_filter).skip(skip).limit(limit)
+        async for user_doc in cursor:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            users.append(UserResponse(**user_doc))
+        
+        total_count = await self.users_collection.count_documents(search_filter)
+        return users, total_count
+    
+    async def delete_user(self, user_id: str) -> bool:
+        """Delete a user account completely"""
+        try:
+            result = await self.users_collection.delete_one({"_id": ObjectId(user_id)})
+            return result.deleted_count > 0
+        except:
+            return False
+    
+    async def suspend_user(self, user_id: str, reason: str) -> bool:
+        """Suspend a user account"""
+        try:
+            await self.users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_suspended": True,
+                        "is_active": False,
+                        "suspension_reason": reason,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except:
+            return False
+    
+    async def activate_user(self, user_id: str) -> bool:
+        """Activate/unsuspend a suspended user"""
+        try:
+            await self.users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_suspended": False,
+                        "is_active": True,
+                        "suspension_reason": None,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except:
+            return False
+    
+    async def make_admin(self, user_id: str) -> bool:
+        """Promote a user to admin"""
+        try:
+            await self.users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_admin": True,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except:
+            return False
+    
+    async def remove_admin(self, user_id: str) -> bool:
+        """Demote an admin user to regular user"""
+        try:
+            await self.users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_admin": False,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return True
+        except:
+            return False
+    
+    async def get_suspended_users(self) -> list:
+        """Get all suspended users"""
+        users = []
+        cursor = self.users_collection.find({"is_suspended": True})
+        async for user_doc in cursor:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            users.append(UserResponse(**user_doc))
+        return users

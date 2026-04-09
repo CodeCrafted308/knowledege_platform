@@ -24,6 +24,9 @@ class User(BaseModel):
     following_count: int = Field(default=0, ge=0)
     posts_count: int = Field(default=0, ge=0)
     is_active: bool = True
+    is_admin: bool = False
+    is_suspended: bool = False
+    suspension_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -64,6 +67,9 @@ class UserResponse(BaseModel):
     followers_count: int
     following_count: int
     posts_count: int
+    is_admin: bool
+    is_suspended: bool
+    suspension_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

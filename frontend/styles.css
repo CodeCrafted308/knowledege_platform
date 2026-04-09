@@ -89,10 +89,10 @@ body {
 
 @keyframes pulseGlow {
     0%, 100% {
-        filter: brightness(1) drop-shadow(0 0 5px rgba(139, 92, 246, 0.3));
+        filter: brightness(1) drop-shadow(0 0 3px rgba(139, 92, 246, 0.2));
     }
     50% {
-        filter: brightness(1.1) drop-shadow(0 0 15px rgba(139, 92, 246, 0.6));
+        filter: brightness(1.05) drop-shadow(0 0 8px rgba(139, 92, 246, 0.3));
     }
 }
 
@@ -150,7 +150,7 @@ body.dark-mode .header {
 }
 
 body.dark-mode .nav-brand {
-    text-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
     animation: pulseGlow 3s ease-in-out infinite;
 }
 
@@ -233,7 +233,7 @@ body.dark-mode .nav-brand {
 
 body.dark-mode .nav-link:hover,
 body.dark-mode .nav-link.active {
-    text-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+    text-shadow: 0 0 6px rgba(139, 92, 246, 0.3);
 }
 
 body.dark-mode .nav-link.active::after {
@@ -1653,7 +1653,7 @@ body.dark-mode .profile-posts-list .post-card {
 }
 
 body.dark-mode .hero-title {
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.8), 0 0 40px rgba(56, 189, 248, 0.4);
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.3), 0 0 16px rgba(56, 189, 248, 0.2);
     animation: fadeInUp 0.8s ease-out 0.1s both, pulseGlow 4s ease-in-out infinite;
 }
 

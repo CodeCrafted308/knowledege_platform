@@ -248,7 +248,7 @@ class PostService:
         
         # Calculate average reliability score from posts
         total_score = sum(post.reliability_score for post in posts)
-        avg_score = total_score / len(posts)
+        avg_score = round(total_score / len(posts), 2)  # FIX: Round for determinism
         
         # Update user's reliability score
         await self.user_service.update_user_reliability_score(user_id, avg_score)
