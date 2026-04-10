@@ -11,8 +11,11 @@ let currentTheme = 'light';
 let carouselIndex = 0;
 let carouselIntervalId = null;
 const carouselImages = [
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=720&fit=crop',
-    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=720&fit=crop'
+    'https://img.freepik.com/premium-photo/professional-business-woman-working-office_969354-3132.jpg',
+    'https://www.wcwonline.org/images/stories/researchandaction/Spring2018/diverse-professional-women-working.jpg',
+    'https://static1.bigstockphoto.com/0/4/1/large1500/140428673.jpg',
+    'https://www.yorku.ca/edu/wp-content/uploads/sites/28/2020/08/Research-stories_shutterstock_124494247-1024x960.jpg',
+    'https://tse4.mm.bing.net/th/id/OIP.OZlGsiysjkBGew-6f2VGAQHaE7?rs=1&pid=ImgDetMain&o=7&rm=3'
 ];
 
 window.addEventListener('DOMContentLoaded', initApp);
