@@ -259,6 +259,13 @@ function showFeed(event) {
     loadPosts();
 }
 
+function showAboutUs(event) {
+    if (event) event.preventDefault();
+    showPage('aboutUsPage');
+    setActiveNav('navAboutLink');
+    stopCarousel();
+}
+
 function showCreatePost(event) {
     if (event) event.preventDefault();
     stopCarousel();
