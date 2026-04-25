@@ -37,10 +37,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # --- CRITICAL CORS CONFIGURATION ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-    ],
+    allow_origins=["*"],  # This allows EVERY port (5500, 5501, etc.)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

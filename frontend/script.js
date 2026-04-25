@@ -18,6 +18,7 @@ const carouselImages = [
     'https://tse4.mm.bing.net/th/id/OIP.OZlGsiysjkBGew-6f2VGAQHaE7?rs=1&pid=ImgDetMain&o=7&rm=3'
 ];
 
+
 window.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
@@ -244,6 +245,20 @@ function setActiveNav(activeId) {
     if (activeLink) activeLink.classList.add('active');
 }
 
+function hideAllPages() {
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => {
+        page.style.display = 'none';
+    });
+}
+
+function updateActiveNavLink(activeId) {
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => link.classList.remove('active'));
+    const activeLink = document.getElementById(activeId);
+    if (activeLink) activeLink.classList.add('active');
+}
+
 function showHome(event) {
     if (event) event.preventDefault();
     showPage('homePage');
@@ -253,10 +268,11 @@ function showHome(event) {
 
 function showFeed(event) {
     if (event) event.preventDefault();
-    showPage('feedPage');
-    setActiveNav('navFeedLink');
-    stopCarousel();
+    hideAllPages();
+    document.getElementById('feedPage').style.display = 'block';
     loadPosts();
+    //loadTopContributors();
+    updateActiveNavLink('feedLink');
 }
 
 function showAboutUs(event) {
@@ -608,7 +624,9 @@ async function performSearch() {
         return;
     }
 
-    showFeed();
+    hideAllPages();
+    document.getElementById('feedPage').style.display = 'block';
+    updateActiveNavLink('feedLink');
 
     try {
         showLoading(true);

@@ -41,10 +41,10 @@ async def connect_to_mongo():
         await client.admin.command('ping')
         
         database = client[settings.database_name]
-        print(f"✅ Connected to MongoDB: {settings.database_name}")
+        print(f"[SUCCESS] Connected to MongoDB: {settings.database_name}")
         
     except Exception as e:
-        print(f"❌ Could not connect to MongoDB: {e}")
+        print(f"[ERROR] Could not connect to MongoDB: {e}")
         raise ConnectionFailure("MongoDB is not reachable.")
 
 async def close_mongo_connection():
@@ -52,7 +52,7 @@ async def close_mongo_connection():
     global client
     if client:
         client.close()
-        print("🔌 MongoDB connection closed.")
+        print("[INFO] MongoDB connection closed.")
 
 async def get_database():
     """Dependency to get the database instance."""

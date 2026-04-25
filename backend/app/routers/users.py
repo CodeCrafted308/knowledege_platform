@@ -147,23 +147,29 @@ async def search_users(
 ):
     """Search users by name or username, or get top users"""
     user_service = UserService(db)
-    users = []
     
     if q:
-        search_filter = {
+        # Search users
+        users = []
+        cursor = user_service.users_collection.find({
             "$or": [
                 {"username": {"$regex": q, "$options": "i"}},
                 {"full_name": {"$regex": q, "$options": "i"}}
             ]
-        }
-    else:
-        search_filter = {}
-
-    # Sort by reliability score by default
-    cursor = user_service.users_collection.find(search_filter).sort("reliability_score", -1).limit(limit)
-    
-    async for user_doc in cursor:
-        user_doc["id"] = str(user_doc.pop("_id"))
-        users.append(UserResponse(**user_doc))
+        }).limit(limit)
         
+        async for user_doc in cursor:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            users.append(UserResponse(**user_doc))
+    else:
+        # Get top users by reliability score
+        users = []
+        cursor = user_service.users_collection.find(
+            {"is_active": True}
+        ).sort("reliability_score", -1).limit(limit)
+        
+        async for user_doc in cursor:
+            user_doc["id"] = str(user_doc.pop("_id"))
+            users.append(UserResponse(**user_doc))
+    
     return users
