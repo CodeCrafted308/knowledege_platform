@@ -219,14 +219,31 @@ class PostService:
         
         return comments
     
+    def _expand_search_terms(self, query: str) -> List[str]:
+        synonyms = {
+            "database": ["sql", "postgres", "postgresql", "mysql", "mongodb", "connection", "query", "db"],
+            "error": ["failure", "timeout", "exception", "bug", "issue"],
+            "performance": ["latency", "speed", "optimization", "tuning"],
+            "auth": ["authentication", "login", "token", "authorization"],
+            "api": ["endpoint", "request", "response", "integration"],
+            "chat": ["message", "conversation", "thread", "discussion"]
+        }
+        tokens = query.lower().split()
+        expanded = {query}
+        for token in tokens:
+            if token in synonyms:
+                expanded.update(synonyms[token])
+        return list(expanded)
+
     async def search_posts(self, query: str, skip: int = 0, limit: int = 10) -> List[PostResponse]:
         """Search posts by title, content, or tags"""
         posts = []
+        search_terms = self._expand_search_terms(query)
         search_filter = {
             "$or": [
-                {"title": {"$regex": query, "$options": "i"}},
-                {"content": {"$regex": query, "$options": "i"}},
-                {"tags": {"$in": [query]}}
+                *[{"title": {"$regex": term, "$options": "i"}} for term in search_terms],
+                *[{"content": {"$regex": term, "$options": "i"}} for term in search_terms],
+                {"tags": {"$in": search_terms}}
             ]
         }
         

@@ -71,6 +71,16 @@
               >
               <a
                 href="#"
+                id="navChatLink"
+                onclick="showChat(event)"
+                class="nav-link"
+                title="Messages"
+              >
+                <i class="fas fa-comments nav-icon" aria-hidden="true"></i>
+                <span class="sr-only">Messages</span>
+              </a>
+              <a
+                href="#"
                 id="navAdminLink"
                 onclick="openAdminPanel(event)"
                 class="nav-link"
@@ -118,10 +128,6 @@
               </div>
             </div>
           </div>
-
-          <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
-            <i class="fas fa-bars"></i>
-          </button>
         </div>
       </nav>
     </header>
@@ -465,7 +471,6 @@
                 </button>
               </div>
 
-              
               <div class="card">
                 <h3>Reliability Badges</h3>
                 <div class="badges-info">
@@ -544,6 +549,116 @@
       </div>
       <div id="profilePage" class="page" style="display: none">
         <div class="container"><h2>My Profile</h2></div>
+      </div>
+      <div id="chatPage" class="page" style="display: none">
+        <div class="container">
+          <div class="chat-container">
+            <div class="chat-sidebar">
+              <h3>Active Conversations</h3>
+              <div class="chat-search">
+                <input
+                  type="text"
+                  id="chatUserSearchInput"
+                  placeholder="Search users to message..."
+                />
+                <button
+                  onclick="searchChatUsers()"
+                  class="btn btn-outline btn-small"
+                >
+                  Search
+                </button>
+              </div>
+              <div id="chatUserSearchResults" class="search-users"></div>
+              <div class="chat-theme-panel">
+                <div class="theme-panel-header">
+                  <h4>Chat Theme</h4>
+                  <p>Choose a style for this chat section.</p>
+                </div>
+                <div class="chat-theme-options">
+                  <button
+                    class="theme-btn"
+                    onclick="setChatTheme('theme-blue')"
+                  >
+                    Blue
+                  </button>
+                  <button
+                    class="theme-btn"
+                    onclick="setChatTheme('theme-emerald')"
+                  >
+                    Emerald
+                  </button>
+                  <button
+                    class="theme-btn"
+                    onclick="setChatTheme('theme-purple')"
+                  >
+                    Purple
+                  </button>
+                  <button
+                    class="theme-btn"
+                    onclick="setChatTheme('theme-sunset')"
+                  >
+                    Sunset
+                  </button>
+                  <button
+                    class="theme-btn"
+                    onclick="setChatTheme('theme-midnight')"
+                  >
+                    Midnight
+                  </button>
+                </div>
+              </div>
+              <div id="solvedLibrary" class="solved-library">
+                <h4>Solved Library</h4>
+                <div id="solvedChallengesList">Loading solved threads...</div>
+              </div>
+              <div id="conversationsList" class="conversations-list"></div>
+            </div>
+            <div class="chat-main">
+              <div id="chatHeader" class="chat-header">
+                <h3>Select a user to start chatting</h3>
+              </div>
+              <div id="chatMessages" class="chat-messages"></div>
+              <div id="chatInput" class="chat-input" style="display: none">
+                <div class="chat-input-actions">
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-small"
+                    id="challengeToggleBtn"
+                    onclick="toggleChallengeMode()"
+                  >
+                    Mark as Challenge
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-small"
+                    onclick="insertCodeBlock()"
+                  >
+                    Code
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-small"
+                    onclick="createPoll()"
+                  >
+                    Poll
+                  </button>
+                </div>
+                <div
+                  id="chatSuggestionBanner"
+                  class="chat-suggestion-banner"
+                ></div>
+                <input
+                  type="text"
+                  id="messageInput"
+                  placeholder="Type your message..."
+                />
+                <button onclick="sendMessage()" class="btn btn-primary">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 

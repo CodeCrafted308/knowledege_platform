@@ -2,10 +2,16 @@ const API_BASE_URL = 'http://127.0.0.1:8000/api';
 const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_USER_KEY = 'authUser';
 const THEME_KEY = 'siteTheme';
+const CHAT_THEME_KEY = 'chatTheme';
 
 let currentUser = null;
 let profileViewUser = null;
 let currentTheme = 'light';
+let currentChatTheme = 'theme-blue';
+let challengeMode = false;
+let currentThreadRoot = null;
+let lastKnowledgeSuggestion = null;
+let knowledgeSuggestionTimer = null;
 
 // Carousel variables
 let carouselIndex = 0;
@@ -181,6 +187,22 @@ function initializeTheme() {
     setTheme(savedTheme === 'dark' ? 'dark' : 'light');
 }
 
+function initializeChatTheme() {
+    const savedChatTheme = localStorage.getItem(CHAT_THEME_KEY);
+    setChatTheme(savedChatTheme || currentChatTheme, false);
+}
+
+function setChatTheme(theme, save = true) {
+    const chatPage = document.getElementById('chatPage');
+    if (!chatPage) return;
+    chatPage.classList.remove('theme-blue', 'theme-emerald', 'theme-purple', 'theme-sunset', 'theme-midnight');
+    chatPage.classList.add(theme);
+    currentChatTheme = theme;
+    if (save) {
+        localStorage.setItem(CHAT_THEME_KEY, theme);
+    }
+}
+
 function startCarousel() {
     const carouselImage = document.getElementById('carouselImage');
     if (!carouselImage) return;
@@ -300,6 +322,92 @@ function showConnections(event) {
     showPage('connectionsPage');
     setActiveNav('navConnectionsLink');
     renderConnections();
+}
+
+function showChat(event) {
+    if (event) event.preventDefault();
+    if (!getAuthToken()) {
+        showToast('Please log in first to chat.', 'warning');
+        showLogin();
+        return;
+    }
+    showPage('chatPage');
+    setActiveNav('navChatLink');
+    initializeChat();
+}
+
+function searchChatUsers() {
+    const query = document.getElementById('chatUserSearchInput').value.trim();
+    if (!query) {
+        document.getElementById('chatUserSearchResults').innerHTML = '<p class="empty-state">Enter a name or username to search for people.</p>';
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/users?q=${encodeURIComponent(query)}&limit=20`, {
+        headers: {
+            Authorization: `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => response.json())
+    .then(users => {
+        renderChatUserSearchResults(Array.isArray(users) ? users : []);
+    })
+    .catch(error => {
+        console.error('Search chat users failed:', error);
+        document.getElementById('chatUserSearchResults').innerHTML = '<p class="empty-state">Unable to search users right now.</p>';
+    });
+}
+
+function renderChatUserSearchResults(users) {
+    const container = document.getElementById('chatUserSearchResults');
+    container.innerHTML = '';
+
+    if (!Array.isArray(users) || users.length === 0) {
+        container.innerHTML = '<p class="empty-state">No users found. Try a different name.</p>';
+        return;
+    }
+
+    container.innerHTML = users.map(user => `
+        <div class="search-user-card card">
+            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=8b5cf6&color=fff&size=128" alt="${user.full_name || user.username}" class="search-user-avatar" onerror="this.onerror=null;this.src='${getAvatarFallbackSvg(user.full_name || user.username)}';" />
+            <div>
+                <strong onclick="showUserProfile('${user.id}')" style="cursor: pointer; color: var(--primary-color);">${user.full_name || user.username}</strong>
+                <span class="user-handle">@${user.username}</span>
+                <p>${user.reliability_score?.toFixed(1) ?? 0}% reliable</p>
+            </div>
+            ${currentUser && user.id !== currentUser.id && getAuthToken() ? `<button class="btn btn-primary btn-small" onclick="messageUser('${user.id}','${user.full_name || user.username}')"><i class="fas fa-comment"></i> Message</button>` : ''}
+        </div>
+    `).join('');
+}
+
+function messageUser(userId, userName) {
+    if (!getAuthToken()) {
+        showToast('Please log in first to send messages.', 'warning');
+        showLogin();
+        return;
+    }
+
+    currentChatUser = { id: userId, name: userName || 'User' };
+    showPage('chatPage');
+    setActiveNav('navChatLink');
+    setChatHeader(userName || 'Chat');
+    showChatInput(true);
+    loadConversations();
+    loadConversation(userId);
+}
+
+function setChatHeader(userName) {
+    const chatHeader = document.getElementById('chatHeader');
+    if (chatHeader) {
+        chatHeader.innerHTML = `<h3>Chatting with ${userName}</h3>`;
+    }
+}
+
+function showChatInput(show = true) {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.style.display = show ? 'flex' : 'none';
+    }
 }
 
 function openAdminPanel(event) {
@@ -997,7 +1105,7 @@ function renderProfile() {
 
     const isOwnProfile = profileViewUser === null;
     const connectionButton = profileViewUser && currentUser && profileViewUser.id !== currentUser.id
-        ? `<button class="btn btn-primary btn-full" onclick="sendConnectionRequest('${profileViewUser.id}')">Connect</button>`
+        ? `<div class="profile-action-buttons"><button class="btn btn-primary btn-full" onclick="sendConnectionRequest('${profileViewUser.id}')">Connect</button><button class="btn btn-secondary btn-full" onclick="messageUser('${profileViewUser.id}','${profileViewUser.full_name || profileViewUser.username}')"><i class="fas fa-comment"></i> Message</button></div>`
         : isOwnProfile
             ? `<button class="btn btn-primary btn-full" onclick="logout()">Logout</button>`
             : '';
@@ -1427,3 +1535,572 @@ function showToast(message, type = 'info') {
         toast.style.display = 'none';
     }, 3500);
 }
+
+// Chat functionality
+let currentChatUser = null;
+let websocket = null;
+
+function initializeChat() {
+    initializeChatTheme();
+    loadConversations();
+    loadSolvedLibrary();
+    connectWebSocket();
+    const chatSearchInput = document.getElementById('chatUserSearchInput');
+    if (chatSearchInput && !chatSearchInput.dataset.chatListener) {
+        chatSearchInput.dataset.chatListener = '1';
+        chatSearchInput.addEventListener('keypress', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                searchChatUsers();
+            }
+        });
+    }
+}
+
+function connectWebSocket() {
+    const token = getAuthToken();
+    if (!token || !currentUser) return;
+    if (websocket && websocket.readyState === WebSocket.OPEN) return;
+
+    const userId = currentUser.id;
+    websocket = new WebSocket(`ws://127.0.0.1:8000/api/chat/ws/${userId}`);
+
+    websocket.onopen = () => {
+        console.log('WebSocket connected');
+    };
+
+    websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message' || data.type === 'message_sent') {
+            handleIncomingMessage(data.message);
+        }
+    };
+
+    websocket.onclose = () => {
+        console.log('WebSocket disconnected');
+        // Reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+}
+
+function loadConversations() {
+    fetch(`${API_BASE_URL}/chat/conversations`, {
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => response.json())
+    .then(conversations => {
+        renderConversations(conversations);
+    })
+    .catch(error => {
+        console.error('Error loading conversations:', error);
+    });
+}
+
+function renderConversations(conversations) {
+    const container = document.getElementById('conversationsList');
+    container.innerHTML = '';
+
+    if (conversations.length === 0) {
+        container.innerHTML = '<p>No conversations yet. Start chatting with someone!</p>';
+        return;
+    }
+
+    conversations.forEach(conv => {
+        const item = document.createElement('div');
+        item.className = 'conversation-item';
+item.onclick = () => openConversation(conv.user_id, conv.username, item);
+
+        const unreadBadge = conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : '';
+
+        item.innerHTML = `
+            <div class="conversation-info">
+                <strong>${conv.full_name || conv.username}</strong>
+                ${unreadBadge}
+            </div>
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+function openConversation(userId, username, element) {
+    currentChatUser = { id: userId, name: username };
+
+    setChatHeader(username);
+    showChatInput(true);
+    loadConversation(userId);
+
+    document.querySelectorAll('.conversation-item').forEach(item => item.classList.remove('active'));
+    if (element) {
+        element.classList.add('active');
+    }
+}
+
+function loadConversation(userId) {
+    fetch(`${API_BASE_URL}/chat/conversation/${userId}`, {
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => response.json())
+    .then(messages => {
+        renderMessages(messages);
+    })
+    .catch(error => {
+        console.error('Error loading conversation:', error);
+    });
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = '';
+
+    const threadGroups = {};
+    const roots = [];
+    const bestAnswerIds = new Set();
+
+    messages.forEach(msg => {
+        if (msg.thread_root_id) {
+            threadGroups[msg.thread_root_id] = threadGroups[msg.thread_root_id] || [];
+            threadGroups[msg.thread_root_id].push(msg);
+        } else {
+            roots.push(msg);
+        }
+    });
+
+    roots.forEach(root => {
+        if (root.best_answer_id) {
+            bestAnswerIds.add(root.best_answer_id);
+        }
+    });
+
+    const renderMessageCard = (msg, nested = false) => {
+        const messageDiv = document.createElement('div');
+        const isSent = msg.sender_id === currentUser.id;
+        let messageClass = `message ${isSent ? 'sent' : 'received'}`;
+        if (msg.is_challenge) messageClass += ' challenge';
+        if (nested) messageClass += ' thread-reply';
+        if (bestAnswerIds.has(msg.id)) messageClass += ' best-answer';
+        messageDiv.className = messageClass;
+
+        const title = msg.is_challenge
+            ? `<div class="sender">${msg.sender_name} <span class="challenge-badge">Challenge</span> <span class="status-label">${msg.challenge_status || 'open'}</span></div>`
+            : `<div class="sender">${msg.sender_name}</div>`;
+
+        const contentHtml = msg.message_type === 'code'
+            ? `<pre class="code-block">${escapeHtml(msg.content)}</pre><div class="code-meta">${msg.metadata?.language || 'code snippet'}</div>`
+            : msg.message_type === 'poll'
+                ? renderPollHtml(msg)
+                : `<div class="content">${escapeHtml(msg.content)}</div>`;
+
+        const timestampHtml = `<div class="timestamp">${new Date(msg.created_at).toLocaleString()}${msg.edited ? ' • edited' : ''}</div>`;
+        messageDiv.innerHTML = `${title}${contentHtml}${timestampHtml}`;
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+
+        if (currentUser && (msg.sender_id === currentUser.id || currentUser.is_admin)) {
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'message-action-btn';
+            exportBtn.textContent = 'Export';
+            exportBtn.addEventListener('click', () => exportMessageToKB(msg.id));
+            actionsDiv.appendChild(exportBtn);
+        }
+
+        if (msg.sender_id === currentUser.id) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'message-action-btn';
+            editBtn.textContent = 'Edit';
+            editBtn.addEventListener('click', () => editMessage(msg.id, msg.content));
+            actionsDiv.appendChild(editBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'message-action-btn danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => deleteMessageById(msg.id));
+            actionsDiv.appendChild(deleteBtn);
+        }
+
+        if (msg.is_challenge && !nested) {
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'message-action-btn';
+            replyBtn.textContent = 'Reply in thread';
+            replyBtn.addEventListener('click', () => replyInThread(msg.id));
+            actionsDiv.appendChild(replyBtn);
+        }
+
+        if (msg.thread_root_id && currentUser) {
+            const parentRoot = roots.find(root => root.id === msg.thread_root_id);
+            if (parentRoot && (parentRoot.sender_id === currentUser.id || currentUser.is_admin)) {
+                const bestBtn = document.createElement('button');
+                bestBtn.className = 'message-action-btn success';
+                bestBtn.textContent = 'Mark Best Answer';
+                bestBtn.addEventListener('click', () => markBestAnswer(msg.thread_root_id, msg.id));
+                actionsDiv.appendChild(bestBtn);
+            }
+        }
+
+        messageDiv.appendChild(actionsDiv);
+        container.appendChild(messageDiv);
+    };
+
+    roots.forEach(root => {
+        renderMessageCard(root, false);
+        if (threadGroups[root.id]) {
+            threadGroups[root.id].forEach(reply => renderMessageCard(reply, true));
+        }
+    });
+
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderPollHtml(msg) {
+    const question = escapeHtml(msg.content);
+    const options = Array.isArray(msg.metadata?.options) ? msg.metadata.options : [];
+    const listItems = options.map(option => `<li>${escapeHtml(option)}</li>`).join('');
+    return `<div class="poll-block"><strong>${question}</strong><ul>${listItems}</ul></div>`;
+}
+
+function escapeHtml(value) {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
+
+    if (!content || !currentChatUser) return;
+    sendStructuredMessage('text', content);
+    input.value = '';
+}
+
+function sendStructuredMessage(messageType, content, metadata = {}) {
+    if (!content || !currentChatUser) return;
+
+    const messageData = {
+        receiver_id: currentChatUser.id,
+        content,
+        message_type: messageType,
+        metadata,
+        is_challenge: challengeMode,
+        thread_root_id: currentThreadRoot || undefined
+    };
+
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify(messageData));
+        if (messageType === 'text') {
+            const input = document.getElementById('messageInput');
+            if (input) input.value = '';
+        }
+        if (challengeMode) {
+            challengeMode = false;
+            updateChallengeToggle();
+        }
+        if (currentThreadRoot) {
+            currentThreadRoot = null;
+            renderThreadState();
+        }
+    } else {
+        showToast('Connection lost. Please refresh the page.', 'error');
+    }
+}
+
+function toggleChallengeMode() {
+    challengeMode = !challengeMode;
+    if (challengeMode) {
+        currentThreadRoot = null;
+    }
+    updateChallengeToggle();
+    renderThreadState();
+}
+
+function updateChallengeToggle() {
+    const btn = document.getElementById('challengeToggleBtn');
+    if (!btn) return;
+    if (challengeMode) {
+        btn.classList.add('active');
+        btn.textContent = 'Challenge Active';
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = 'Mark as Challenge';
+    }
+}
+
+function renderThreadState() {
+    const banner = document.getElementById('chatSuggestionBanner');
+    if (!banner) return;
+
+    if (currentThreadRoot) {
+        banner.innerHTML = `<span class="thread-state">Replying in challenge thread</span>`;
+        return;
+    }
+
+    if (challengeMode) {
+        banner.innerHTML = `<span class="thread-state">Challenge mode is active. Your next message will start a solution thread.</span>`;
+        return;
+    }
+
+    banner.innerHTML = lastKnowledgeSuggestion || '';
+}
+
+function insertCodeBlock() {
+    const code = prompt('Paste your code snippet:');
+    if (!code || !currentChatUser) return;
+    const language = prompt('Language (optional)', 'javascript') || 'text';
+    sendStructuredMessage('code', code, { language });
+}
+
+function createPoll() {
+    const question = prompt('Poll question:');
+    if (!question || !currentChatUser) return;
+    const options = prompt('Enter poll options separated by a semicolon (;)');
+    if (!options) return;
+    const choices = options.split(';').map(option => option.trim()).filter(Boolean);
+    if (choices.length < 2) {
+        showToast('Please add at least two poll options.', 'warning');
+        return;
+    }
+    sendStructuredMessage('poll', question, { options: choices, votes: {} });
+}
+
+function getKnowledgeSuggestion(query) {
+    if (!query || query.length < 3) {
+        clearSuggestion();
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/chat/knowledge-suggestions?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(posts => {
+            if (!Array.isArray(posts) || posts.length === 0) {
+                clearSuggestion();
+                return;
+            }
+            const post = posts[0];
+            lastKnowledgeSuggestion = `<span class="suggestion-text">Hey, this looks similar to <strong>${post.title}</strong>. <a href="#" onclick="openPostSuggestion('${post.id}')">View article</a> before posting.</span>`;
+            renderThreadState();
+        })
+        .catch(() => {
+            clearSuggestion();
+        });
+}
+
+function openPostSuggestion(postId) {
+    showToast('Feature not available yet. Search the knowledge base for similar articles.', 'info');
+    return false;
+}
+
+function clearSuggestion() {
+    lastKnowledgeSuggestion = '';
+    const banner = document.getElementById('chatSuggestionBanner');
+    if (banner) {
+        banner.innerHTML = '';
+    }
+}
+
+function loadSolvedLibrary() {
+    fetch(`${API_BASE_URL}/chat/challenges/solved`, {
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => response.json())
+    .then(solved => renderSolvedChallenges(solved))
+    .catch(error => {
+        console.error('Unable to load solved library:', error);
+        const container = document.getElementById('solvedChallengesList');
+        if (container) {
+            container.innerHTML = '<p class="empty-state">Unable to load solved threads.</p>';
+        }
+    });
+}
+
+function renderSolvedChallenges(challenges) {
+    const container = document.getElementById('solvedChallengesList');
+    if (!container) return;
+
+    if (!Array.isArray(challenges) || challenges.length === 0) {
+        container.innerHTML = '<p class="empty-state">No solved challenge threads yet.</p>';
+        return;
+    }
+
+    container.innerHTML = challenges.map(challenge => {
+        const otherId = currentUser && challenge.sender_id === currentUser.id ? challenge.receiver_id : challenge.sender_id;
+        const otherName = currentUser && challenge.sender_id === currentUser.id ? challenge.receiver_name : challenge.sender_name;
+        const title = challenge.content.length > 60 ? `${challenge.content.slice(0, 58)}…` : challenge.content;
+        return `<div class="solved-card" onclick="openSolvedThread('${challenge.id}', '${otherId}', '${otherName}')">
+            <strong>${title}</strong>
+            <span>Solved by ${challenge.sender_name}</span>
+        </div>`;
+    }).join('');
+}
+
+function openSolvedThread(challengeId, otherUserId, otherName) {
+    if (!otherUserId) return;
+    messageUser(otherUserId, otherName);
+    showToast('Opened solved thread conversation.', 'success');
+}
+
+function exportMessageToKB(messageId) {
+    const title = prompt('Title for the exported article (optional):');
+    if (!messageId) return;
+
+    fetch(`${API_BASE_URL}/chat/message/${messageId}/export`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title })
+    })
+    .then(response => response.json())
+    .then(result => {
+        showToast('Message exported to knowledge base.', 'success');
+        loadSolvedLibrary();
+    })
+    .catch(error => {
+        console.error('Export failed:', error);
+        showToast('Unable to export message to knowledge base.', 'error');
+    });
+}
+
+function markBestAnswer(challengeId, answerId) {
+    fetch(`${API_BASE_URL}/chat/challenge/${challengeId}/best-answer/${answerId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Unable to mark best answer');
+        return response.json();
+    })
+    .then(() => {
+        if (currentChatUser) {
+            loadConversation(currentChatUser.id);
+        }
+        loadSolvedLibrary();
+        showToast('Best answer marked.', 'success');
+    })
+    .catch(error => {
+        console.error('Best answer marking failed:', error);
+        showToast('Unable to mark best answer.', 'error');
+    });
+}
+
+function replyInThread(rootId) {
+    currentThreadRoot = rootId;
+    challengeMode = false;
+    updateChallengeToggle();
+    renderThreadState();
+    showToast('Replying in the current challenge thread.', 'success');
+}
+
+function editMessage(messageId, currentContent) {
+    const newContent = prompt('Edit your message', currentContent);
+    if (newContent === null || newContent.trim() === '' || newContent.trim() === currentContent.trim()) {
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/chat/message/${messageId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: newContent.trim() })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Unable to update message');
+        }
+        return response.json();
+    })
+    .then(() => {
+        if (currentChatUser) {
+            loadConversation(currentChatUser.id);
+        }
+        loadConversations();
+        showToast('Message updated.', 'success');
+    })
+    .catch(error => {
+        console.error('Edit message failed:', error);
+        showToast('Unable to update message.', 'error');
+    });
+}
+
+function deleteMessageById(messageId) {
+    if (!confirm('Delete this message?')) {
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/chat/message/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Unable to delete message');
+        }
+        return response.json();
+    })
+    .then(() => {
+        if (currentChatUser) {
+            loadConversation(currentChatUser.id);
+        }
+        loadConversations();
+        showToast('Message deleted.', 'success');
+    })
+    .catch(error => {
+        console.error('Delete message failed:', error);
+        showToast('Unable to delete message.', 'error');
+    });
+}
+
+function handleIncomingMessage(message) {
+    if (currentChatUser && (message.sender_id === currentChatUser.id || message.receiver_id === currentChatUser.id)) {
+        loadConversation(currentChatUser.id);
+    }
+
+    loadConversations();
+}
+
+// Handle Enter key in message input
+document.addEventListener('DOMContentLoaded', () => {
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        messageInput.addEventListener('input', () => {
+            const value = messageInput.value.trim();
+            if (value.length < 5) {
+                clearSuggestion();
+                return;
+            }
+            if (knowledgeSuggestionTimer) {
+                clearTimeout(knowledgeSuggestionTimer);
+            }
+            knowledgeSuggestionTimer = setTimeout(() => {
+                getKnowledgeSuggestion(value);
+            }, 600);
+        });
+    }
+});
